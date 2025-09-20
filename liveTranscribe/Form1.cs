@@ -1,4 +1,6 @@
+using EchoSharp.Abstractions.Audio;
 using EchoSharp.Abstractions.SpeechTranscription;
+using EchoSharp.NAudio;
 using EchoSharp.Onnx.SileroVad;
 using EchoSharp.SpeechTranscription;
 using EchoSharp.Whisper.net;
@@ -10,6 +12,7 @@ using System.Globalization;
 using System.Net;
 using Whisper.net;
 using Whisper.net.Ggml;
+using Whisper.net.LibraryLoader;
 namespace liveTranscribe
 {
     public partial class Form1 : Form
@@ -49,16 +52,15 @@ namespace liveTranscribe
                 Threshold = 0f, // The threshold for Silero VAD. The default is 0.5f.
                 ThresholdGap = 0f, // The threshold gap for Silero VAD. The default is 0.15f.
             });
-            var ggmlModelPath = "models/ggml-base.bin";
+            var ggmlModelPath = "models/ggml-Medium.bin";
             if (!File.Exists(ggmlModelPath))
             {
-                using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(GgmlType.Base);
+                using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(GgmlType.Medium);
                 using var fileWriter = File.OpenWrite(ggmlModelPath);
                 await modelStream.CopyToAsync(fileWriter);
             }
             factory = WhisperFactory.FromPath(ggmlModelPath);
-
-            speechTranscriptorFactory = new WhisperSpeechTranscriptorFactory(factory);
+            speechTranscriptorFactory = new WhisperSpeechTranscriptorFactory(factory.CreateBuilder().WithTranslate().WithLanguageDetection());
 
             realTimeFactory = new EchoSharpRealtimeTranscriptorFactory(speechTranscriptorFactory, vadDetectorFactory, echoSharpOptions: new EchoSharpRealtimeOptions()
             {
@@ -80,9 +82,10 @@ namespace liveTranscribe
             await LoadTask;
             if (waveloop == null)
             {
-                
+
 
                 waveloop = new WaspiLoopbackAudioSource();
+                //waveloop = new MicrophoneInputSource();
 
                 async Task ShowTranscriptAsync()
                 {

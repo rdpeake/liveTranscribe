@@ -13,6 +13,7 @@ namespace liveTranscribe
     {
         WasapiLoopbackCapture waveloop;
         WaveFormat format;
+        WaveFormat inFormat;
         private WaveFileWriter? waveFile;
 
         public byte[] ToPCM16(byte[] buffer, int length, WaveFormat format)
@@ -27,7 +28,7 @@ namespace liveTranscribe
 
             var convertedPCM = new SampleToWaveProvider16(
                     new WdlResamplingSampleProvider(
-                        new WaveToSampleProvider(inputStream), 48000)
+                        new WaveToSampleProvider(inputStream), 16000)
                 );
 
             byte[] convertedBuffer = new byte[length];
@@ -41,19 +42,21 @@ namespace liveTranscribe
             return stream.ToArray();
         }
 
-        public WaspiLoopbackAudioSource() : base()
+        public WaspiLoopbackAudioSource() : base(aggregationStrategy: DefaultChannelAggregationStrategies.SelectChannel(0))
         {
             
             waveloop = new WasapiLoopbackCapture();
 
             Initialize(new AudioSourceHeader()
             {
-                BitsPerSample = 32,
-                Channels = 2,
-                SampleRate = 48000
+                BitsPerSample = 16,
+                Channels = 1,
+                SampleRate = 16000
             });
             
-            format = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+            
+            //format = new WaveFormat(16000, 2);
+            inFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
             
             waveloop.DataAvailable += Waveloop_DataAvailable;
             waveloop.RecordingStopped += Waveloop_RecordingStopped;
@@ -62,14 +65,14 @@ namespace liveTranscribe
         public void StartRecording()
         {
             waveloop.StartRecording();
-            waveFile = new WaveFileWriter("testStream.wav", format);
+            //waveFile = new WaveFileWriter("testStream.wav", format);
         }
 
         public void StopRecording()
         {
             waveloop.StopRecording();
-            waveFile?.Flush();
-            waveFile?.Close();
+            //waveFile?.Flush();
+            //waveFile?.Close();
         }
 
         protected override void Dispose(bool disposing)
@@ -88,9 +91,9 @@ namespace liveTranscribe
 
 
 
-            //var buffer = ToPCM16(e.Buffer, e.BytesRecorded, format);
-            waveFile?.Write(e.Buffer, 0, e.BytesRecorded);
-            WriteData(e.Buffer.AsMemory(0, e.BytesRecorded));
+            var buffer = ToPCM16(e.Buffer, e.BytesRecorded, inFormat);
+            //waveFile?.Write(buffer, 0, buffer.Length);
+            WriteData(buffer.AsMemory(0, buffer.Length));
         }
 
         private void Waveloop_RecordingStopped(object? sender, StoppedEventArgs e)
