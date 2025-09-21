@@ -25,7 +25,6 @@ namespace liveTranscribe
         private WhisperFactory factory;
         private WhisperSpeechTranscriptorFactory speechTranscriptorFactory;
         private EchoSharpRealtimeTranscriptorFactory realTimeFactory;
-        CancellationTokenSource token = new CancellationTokenSource();
 
         public Form1()
         {
@@ -49,18 +48,18 @@ namespace liveTranscribe
             }
             vadDetectorFactory = new SileroVadDetectorFactory(new SileroVadOptions(sileroOnnxPath)
             {
-                Threshold = 0f, // The threshold for Silero VAD. The default is 0.5f.
-                ThresholdGap = 0f, // The threshold gap for Silero VAD. The default is 0.15f.
+                Threshold = 0.15f, // The threshold for Silero VAD. The default is 0.5f.
+                ThresholdGap = 0.15f, // The threshold gap for Silero VAD. The default is 0.15f.
             });
-            var ggmlModelPath = "models/ggml-Medium.bin";
+            var ggmlModelPath = "models/ggml-LargeV3Turbo.bin";
             if (!File.Exists(ggmlModelPath))
             {
-                using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(GgmlType.Medium);
+                using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(GgmlType.LargeV3Turbo);
                 using var fileWriter = File.OpenWrite(ggmlModelPath);
                 await modelStream.CopyToAsync(fileWriter);
             }
             factory = WhisperFactory.FromPath(ggmlModelPath);
-            speechTranscriptorFactory = new WhisperSpeechTranscriptorFactory(factory.CreateBuilder().WithTranslate().WithLanguageDetection());
+            speechTranscriptorFactory = new WhisperSpeechTranscriptorFactory(factory.CreateBuilder().WithLanguage("en-us")/*.WithTranslate().WithLanguageDetection()*/);
 
             realTimeFactory = new EchoSharpRealtimeTranscriptorFactory(speechTranscriptorFactory, vadDetectorFactory, echoSharpOptions: new EchoSharpRealtimeOptions()
             {
@@ -89,7 +88,7 @@ namespace liveTranscribe
 
                 async Task ShowTranscriptAsync()
                 {
-                    await foreach (var transcription in realTimeTranscriptor.TranscribeAsync(waveloop, token.Token))
+                    await foreach (var transcription in realTimeTranscriptor.TranscribeAsync(waveloop))
                     {
                         var eventType = transcription.GetType().Name;
                         this.Invoke(new Action(() => label1.Text = eventType));
@@ -117,11 +116,10 @@ namespace liveTranscribe
         {
             if (waveloop != null)
             {
-                MessageBox.Show(waveloop.Duration.ToString());
+                //MessageBox.Show(waveloop.Duration.ToString());
                 waveloop.StopRecording();
                 waveloop.Dispose();
                 waveloop = null;
-                token.Cancel();
             }
         }
 

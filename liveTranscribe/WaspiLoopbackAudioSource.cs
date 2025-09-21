@@ -56,7 +56,7 @@ namespace liveTranscribe
             
             
             //format = new WaveFormat(16000, 2);
-            inFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+            inFormat = waveloop.WaveFormat;
             
             waveloop.DataAvailable += Waveloop_DataAvailable;
             waveloop.RecordingStopped += Waveloop_RecordingStopped;
